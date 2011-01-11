@@ -9,7 +9,7 @@ class ODDataTest extends FlatSpec with ShouldMatchers {
   it should "load nodes and flows from two CSV strings" in {
 
     val nodes = ODData.loadNodesFromCsv(
-      delim = ',', idCol = 0, nameCol = 1, latCol = 2, lonCol = 3,
+      delim = ',', idColName = "Code", nameColName = "Name", latColName = "Lat", lonColName = "Lon",
       reader = ODData.stringReader(
 """Code,Name,Lat,Lon
 A,Node A,10,10
@@ -19,7 +19,7 @@ C,Node C,12,10.5
 
     val data = new ODData(NodeInMapSearch(nodes))
     data.loadFlowlistFromCsv(
-      delim = ',', originCol = 0, destCol = 1, attrCols = List(2,3,4,5),
+      delim = ',', originColName = "Origin", destColName = "Dest", attrColNames = "1999,2000,2001,2002",
       reader = ODData.stringReader(
 """Origin,Dest,1999,2000,2001,2002
 A,B,1,2,1,0
