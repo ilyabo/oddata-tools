@@ -1,6 +1,6 @@
 package oddata
 
-import _root_.cli.Cli
+import cli.Cli
 import com.Ostermiller.util.CSVParser
 import geosearch.GeoSearch
 import scala.collection._
@@ -78,7 +78,8 @@ object ODData {
   def indexOfCol(colName:String, colNames:Array[String]):Int = {
     val idx = colNames.findIndexOf(_ == colName)
     if (idx < 0)
-      throw new IllegalArgumentException("Column '" + colName + "' not found. Available columns: " + colNames)
+      throw new IllegalArgumentException("Column '" + colName + "' not found." +
+        " Available columns: " + colNames.toList.foldLeft("")((b,a)=> a + (if (b.length>0) "," else "") + b))
     idx
   }
 
@@ -205,6 +206,55 @@ class ODData(nodeFactory:NodeSearch) {
       node
     }
 
+  def saveToGraphML(datasetName:String, outputFile:String) {
+    println("Generating GraphML")
+    val xml = <graphml xmlns="http://graphml.graphdrawing.org/xmlns"
+                xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                xsi:schemaLocation="http://graphml.graphdrawing.org/xmlns
+                http://graphml.graphdrawing.org/xmlns/1.0/graphml.xsd">
+
+        <key attr.type="double" attr.name="lat" id="lat" for="node"/>
+        <key attr.type="double" attr.name="lon" id="lon" for="node"/>
+        <key attr.name="name" attr.type="string" id="name" for="node"/>
+        <key attr.name="fullname" attr.type="string" id="fullname" for="node"/>
+        <key attr.name="code" attr.type="string" id="code" for="node"/>
+        {
+          for (attr <- getFlowAttrs) yield {
+            // The id parameter below should be the last one!
+            // Otherwise lines vanish because of some strange bug
+            <key for="edge" attr.type="double"  attr.name={attr} id={attr}/>
+          }
+        }
+      <graph id={datasetName} edgedefault="directed">
+      {
+        for (node <- getNodesByCode.values) yield {
+          <node id={node.code}>
+            <data key="code">{node.code}</data>
+            <data key="name">{node.name}</data>
+            <data key="lat">{node.lat.getOrElse("")}</data>
+            <data key="lon">{node.lon.getOrElse("")}</data>
+          </node>
+        }
+      }
+      {
+        for ((od, flows) <- getFlowsByOriginDest) yield {
+          <edge source={od.origin.code} target={od.dest.code}>
+            {
+              for (flow <- flows if (flow.value.isDefined)) yield {
+                <data key={flow.attr}>{flow.value.get}</data>
+              }
+            }
+          </edge>
+        }
+      }
+      </graph>
+    </graphml>
+
+    println("Writing GraphML output")
+    XML.save(outputFile, xml, "UTF-8", true, null)
+  }
+
+
 }
 
 
@@ -295,7 +345,7 @@ List of supported commands:
     data.loadFlowlistFromCsv(ODData.fileReader(flowsCsv), delim,
       options("originCol"), options("destCol"), options("attrCols"))
 
-    saveToGraphML(data, getDatasetName(flowsCsv), outputFile)
+    data.saveToGraphML(getDatasetName(flowsCsv), outputFile)
   }
 
   def getDatasetName(filename:String) = {
@@ -303,54 +353,6 @@ List of supported commands:
     val sep = name.lastIndexWhere(_ == '.')
     if (sep > 0) name = name.dropRight(name.length - sep)
     name
-  }
-
-  def saveToGraphML(data:ODData, datasetName:String, outputFile:String) {
-    println("Generating GraphML")
-    val xml = <graphml xmlns="http://graphml.graphdrawing.org/xmlns"
-                xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-                xsi:schemaLocation="http://graphml.graphdrawing.org/xmlns
-                http://graphml.graphdrawing.org/xmlns/1.0/graphml.xsd">
-
-        <key attr.type="double" attr.name="lat" id="lat" for="node"/>
-        <key attr.type="double" attr.name="lon" id="lon" for="node"/>
-        <key attr.name="name" attr.type="string" id="name" for="node"/>
-        <key attr.name="fullname" attr.type="string" id="fullname" for="node"/>
-        <key attr.name="code" attr.type="string" id="code" for="node"/>
-        {
-          for (attr <- data.getFlowAttrs) yield {
-            // The id parameter below should be the last one!
-            // Otherwise lines vanish because of some strange bug
-            <key for="edge" attr.type="double"  attr.name={attr} id={attr}/>
-          }
-        }
-      <graph id={datasetName} edgedefault="directed">
-      {
-        for (node <- data.getNodesByCode.values) yield {
-          <node id={node.code}>
-            <data key="code">{node.code}</data>
-            <data key="name">{node.name}</data>
-            <data key="lat">{node.lat.getOrElse("")}</data>
-            <data key="lon">{node.lon.getOrElse("")}</data>
-          </node>
-        }
-      }
-      {
-        for ((od, flows) <- data.getFlowsByOriginDest) yield {
-          <edge source={od.origin.code} target={od.dest.code}>
-            {
-              for (flow <- flows if (flow.value.isDefined)) yield {
-                <data key={flow.attr}>{flow.value.get}</data>
-              }
-            }
-          </edge>
-        }
-      }
-      </graph>
-    </graphml>
-
-    println("Writing GraphML output")
-    XML.save(outputFile, xml, "UTF-8", true, null)
   }
 
 

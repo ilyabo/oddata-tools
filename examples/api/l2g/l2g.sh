@@ -1,0 +1,1 @@
+~/Devel/scala-2.8.1/bin/scala -classpath ../../../target/scala_2.8.1/oddata-tools_2.8.1-0.1.jar:../../../lib/ostermillerutils_1_07_00.jar l2g.scala
